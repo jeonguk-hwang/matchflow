@@ -1,4 +1,5 @@
 export type User = { id: string; email: string };
+
 export type Match = {
   id: string;
   event: string;
