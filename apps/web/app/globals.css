@@ -2,11 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Black Combat-like condensed display font */
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&display=swap');
+
 :root { color-scheme: dark; }
-body { @apply bg-zinc-950 text-zinc-100; }
-.container { @apply max-w-5xl mx-auto p-6; }
-.card { @apply bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 shadow; }
-.btn { @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700; }
-.input { @apply w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 outline-none; }
+body { @apply bg-black text-zinc-100 antialiased; }
+
+/* Layout helpers */
+.container { @apply w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8; }
+.section { @apply py-8 sm:py-12; }
+
+/* Card / UI tokens */
+.card { @apply bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 shadow; }
+.btn { @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 transition; }
+.btn-accent { @apply btn border-brand-accent text-brand-accent hover:bg-brand-accent/10; }
+.input { @apply w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 outline-none focus:border-brand-accent; }
 .badge { @apply text-xs px-2 py-1 rounded-full border border-zinc-700; }
-.nav { @apply flex items-center gap-3 py-3; }
+.badge-accent { @apply badge border-brand-accent text-brand-accent; }
+
+/* Black Combat vibe */
+.brand { @apply font-display font-extrabold tracking-tight; }
+.brand-accent { @apply text-brand-accent; }
+.header { @apply sticky top-0 z-40 backdrop-blur bg-black/70 border-b border-zinc-900; }
+.navlink { @apply px-3 py-2 rounded-lg hover:bg-zinc-900; }
+.navlink-active { @apply text-brand-accent; }
+
+/* Hero */
+.hero { @apply relative overflow-hidden rounded-2xl border border-zinc-900; }
+.hero-bg { @apply absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-black; }
+.hero-stripe { @apply absolute -left-24 top-0 h-full w-2/3 -rotate-6 bg-gradient-to-r from-brand-accent/20 to-transparent; }
+.hero-ring { @apply absolute -inset-10 rounded-full border border-brand-accent/20 blur-2xl; }
