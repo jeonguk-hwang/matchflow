@@ -2,12 +2,7 @@
   "version": 2,
   "functions": {
     "api/**/*.ts": {
-      "runtime": "@vercel/node@2.15.10"
+      "runtime": "@vercel/node@5.0.0"
     }
-  },
-  "buildCommand": "echo skip",
-  "outputDirectory": ".",
-  "env": {
-    "NODE_VERSION": "18.x"
   }
 }
