@@ -6,5 +6,8 @@
     }
   },
   "buildCommand": "echo skip",
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "env": {
+    "NODE_VERSION": "18.x"
+  }
 }
