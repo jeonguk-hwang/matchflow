@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -b",
-    "start": "node dist/index.js"
+    "vercel-build": "echo skip"
   },
   "dependencies": {
     "@vercel/node": "^2.15.10",

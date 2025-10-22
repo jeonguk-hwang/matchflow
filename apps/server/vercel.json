@@ -4,5 +4,7 @@
     "api/**/*.ts": {
       "runtime": "@vercel/node@2.15.10"
     }
-  }
+  },
+  "buildCommand": "echo skip",
+  "outputDirectory": "."
 }
