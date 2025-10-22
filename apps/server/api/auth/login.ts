@@ -2,30 +2,14 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 type User = { id: string; email: string }
 
-/** 간단한 ALLOWED_ORIGINS 파서 */
-function parseAllowed(): string[] {
-  const raw = process.env.ALLOWED_ORIGINS || ''
-  return raw
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean)
-}
-
-/** 정확매치 전용(운영 도메인/로컬 커버). 와일드카드가 필요하면 패턴 매칭 추가 가능 */
-function isAllowedOrigin(origin: string | undefined, list: string[]) {
-  if (!origin) return false
-  if (list.length === 0) return true // 비어있으면 전부 허용(*)
-  return list.includes(origin)
-}
-
-/** 공통 CORS 헤더 세팅 */
+/** ALLOWED_ORIGINS 파싱 + CORS 헤더 세팅 */
 function setCorsHeaders(req: VercelRequest, res: VercelResponse) {
   const origin = req.headers.origin as string | undefined
-  const list = parseAllowed()
+  const raw = process.env.ALLOWED_ORIGINS || ''
+  const list = raw.split(',').map(s => s.trim()).filter(Boolean)
   const allowAll = list.length === 0 || list.includes('*')
-  const allowed = allowAll || isAllowedOrigin(origin, list)
+  const allowed = allowAll || (!!origin && list.includes(origin))
 
-  // 요청 헤더/메서드 에코
   const reqMethod =
     (req.headers['access-control-request-method'] as string | undefined) ?? 'GET,POST,OPTIONS'
   const reqHeaders =
@@ -46,11 +30,32 @@ function setCorsHeaders(req: VercelRequest, res: VercelResponse) {
   return { allowed: allowAll || allowed }
 }
 
+/** 안전한 jsonwebtoken sign 로더 (ESM/CJS 인터롭 대응) */
+async function jwtSign(payload: any, secret: string, options?: Record<string, any>) {
+  const mod: any = await import('jsonwebtoken')
+  const sign =
+    mod?.sign ??
+    mod?.default?.sign // CJS를 ESM으로 import하면 default 밑에 존재할 수 있음
+  if (typeof sign !== 'function') {
+    throw new Error('jsonwebtoken.sign not available')
+  }
+  return sign(payload, secret, options)
+}
+
+/** body 파서 (Vercel Functions에서 req.body가 string일 수 있음) */
+function parseBody<T = any>(req: VercelRequest): T {
+  const b: any = (req as any).body
+  if (typeof b === 'string') {
+    try { return JSON.parse(b) as T } catch { /* fallthrough */ }
+  }
+  return b as T
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { allowed } = setCorsHeaders(req, res)
 
-    // ✅ 프리플라이트는 무조건 여기서 끝낸다
+    // Preflight
     if (req.method === 'OPTIONS') {
       res.status(allowed ? 204 : 403).end()
       return
@@ -66,22 +71,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    const { email, password } = (req.body || {}) as { email?: string; password?: string }
+    const { email, password } = parseBody<{ email?: string; password?: string }>(req) || {}
     if (!email || !password) {
       res.status(400).json({ message: 'Invalid credentials' })
       return
     }
 
-    // ✅ jsonwebtoken은 POST 처리 시에만 동적 로드 (프리플라이트/모듈 로딩 영향 없음)
-    const jwt = await import('jsonwebtoken')
-
-    const user: User = { id: 'u_1', email }
     const SECRET = process.env.JWT_SECRET || 'matchflow-dev-secret'
-    const token = jwt.sign(user, SECRET, { expiresIn: '7d' })
+    const user: User = { id: 'u_1', email }
+    const token = await jwtSign(user, SECRET, { expiresIn: '7d' })
 
     res.status(200).json({ token, user })
-  } catch {
-    // 어떤 예외도 500으로 마무리
+  } catch (e) {
+    // 디버깅 시 아래 주석을 임시로 열어도 됨: res.status(500).json({ message: (e as Error).message })
     res.status(500).json({ message: 'Internal Server Error' })
   }
 }
