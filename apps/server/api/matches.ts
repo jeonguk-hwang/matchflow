@@ -39,11 +39,19 @@ function getBearerToken(authorization?: string | string[]) {
 /** 안전한 jsonwebtoken verify (ESM/CJS 인터롭 대응) */
 async function jwtVerify(token: string, secret: string) {
   const mod: any = await import('jsonwebtoken')
-  const verify =
-    mod?.verify ??
-    mod?.default?.verify
+  const verify = mod?.verify ?? mod?.default?.verify
   if (typeof verify !== 'function') throw new Error('jsonwebtoken.verify not available')
+  // HS256 기본값
   return verify(token, secret)
+}
+
+/** 디버그 응답 헬퍼 */
+function sendError(res: VercelResponse, status: number, err: unknown, hint?: string) {
+  const debug = process.env.DEBUG_ERRORS === '1'
+  if (debug && err instanceof Error) {
+    return res.status(status).json({ message: err.message, hint, stack: err.stack })
+  }
+  return res.status(status).json({ message: 'Internal Server Error' })
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -70,31 +78,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const SECRET = process.env.JWT_SECRET || 'matchflow-dev-secret'
     try {
       await jwtVerify(token, SECRET)
-    } catch {
-      res.status(401).json({ message: 'Invalid token' })
-      return
+    } catch (e) {
+      // 서명/시크릿 불일치 가능성 높음 → 디버그 힌트 포함
+      const debug = process.env.DEBUG_ERRORS === '1'
+      return res
+        .status(401)
+        .json(debug ? { message: 'Invalid token', hint: 'JWT verify failed (secret/alg?)' } : { message: 'Invalid token' })
     }
 
     if (req.method === 'GET') {
-      const { Matches } = await import('./_lib/matches')
-      res.status(200).json(Matches.list())
-      return
+      try {
+        const { Matches } = await import('./_lib/matches')
+        res.status(200).json(Matches.list())
+        return
+      } catch (e) {
+        return sendError(res, 500, e, 'Failed to load Matches.list()')
+      }
     }
 
     if (req.method === 'POST') {
-      const { Matches } = await import('./_lib/matches')
-      const body = req.body as Omit<Match, 'id'>
-      if (!body?.event || !body?.red || !body?.blue || !body?.status) {
-        res.status(400).json({ message: 'Bad Request' })
+      try {
+        const { Matches } = await import('./_lib/matches')
+        const body = req.body as Omit<Match, 'id'>
+        if (!body?.event || !body?.red || !body?.blue || !body?.status) {
+          res.status(400).json({ message: 'Bad Request' })
+          return
+        }
+        const created = Matches.create(body)
+        res.status(201).json(created)
         return
+      } catch (e) {
+        return sendError(res, 500, e, 'Failed to create match')
       }
-      const created = Matches.create(body)
-      res.status(201).json(created)
-      return
     }
 
     res.status(405).json({ message: 'Method Not Allowed' })
-  } catch {
-    res.status(500).json({ message: 'Internal Server Error' })
+  } catch (e) {
+    return sendError(res, 500, e, 'Top-level handler error')
   }
 }
