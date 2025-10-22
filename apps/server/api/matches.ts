@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { randomUUID } from 'crypto'
 import type { Match } from './_lib/types'
 
 /** CORS 헤더 세팅 (로그인과 동일한 방식) */
@@ -41,8 +42,25 @@ async function jwtVerify(token: string, secret: string) {
   const mod: any = await import('jsonwebtoken')
   const verify = mod?.verify ?? mod?.default?.verify
   if (typeof verify !== 'function') throw new Error('jsonwebtoken.verify not available')
-  // HS256 기본값
   return verify(token, secret)
+}
+
+/** ✅ 이 파일 안에 Matches 스토어를 내장 (동적 import/번들 누락 이슈 제거) */
+const seed: Match[] = [
+  { id: randomUUID(), event: 'BlackCombat 41', red: 'Kim A',  blue: 'Park B', status: 'scheduled' },
+  { id: randomUUID(), event: 'BlackCombat 41', red: 'Lee C',  blue: 'Choi D', status: 'changed'   },
+  { id: randomUUID(), event: 'BlackCombat 42', red: 'Jung E', blue: 'Han F',  status: 'scheduled' }
+]
+let memory: Match[] = [...seed]
+const Matches = {
+  list(): Match[] {
+    return memory
+  },
+  create(input: Omit<Match, 'id'>): Match {
+    const created: Match = { id: randomUUID(), ...input }
+    memory = [created, ...memory]
+    return created
+  }
 }
 
 /** 디버그 응답 헬퍼 */
@@ -69,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return
     }
 
-    // ✅ 인증 (동적 import 사용)
+    // ✅ 인증
     const token = getBearerToken(req.headers.authorization as any)
     if (!token) {
       res.status(401).json({ message: 'No token' })
@@ -78,38 +96,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const SECRET = process.env.JWT_SECRET || 'matchflow-dev-secret'
     try {
       await jwtVerify(token, SECRET)
-    } catch (e) {
-      // 서명/시크릿 불일치 가능성 높음 → 디버그 힌트 포함
+    } catch {
       const debug = process.env.DEBUG_ERRORS === '1'
-      return res
+      res
         .status(401)
         .json(debug ? { message: 'Invalid token', hint: 'JWT verify failed (secret/alg?)' } : { message: 'Invalid token' })
+      return
     }
 
     if (req.method === 'GET') {
-      try {
-        const { Matches } = await import('./_lib/matches')
-        res.status(200).json(Matches.list())
-        return
-      } catch (e) {
-        return sendError(res, 500, e, 'Failed to load Matches.list()')
-      }
+      res.status(200).json(Matches.list())
+      return
     }
 
     if (req.method === 'POST') {
-      try {
-        const { Matches } = await import('./_lib/matches')
-        const body = req.body as Omit<Match, 'id'>
-        if (!body?.event || !body?.red || !body?.blue || !body?.status) {
-          res.status(400).json({ message: 'Bad Request' })
-          return
-        }
-        const created = Matches.create(body)
-        res.status(201).json(created)
+      const body = req.body as Omit<Match, 'id'>
+      if (!body?.event || !body?.red || !body?.blue || !body?.status) {
+        res.status(400).json({ message: 'Bad Request' })
         return
-      } catch (e) {
-        return sendError(res, 500, e, 'Failed to create match')
       }
+      const created = Matches.create(body)
+      res.status(201).json(created)
+      return
     }
 
     res.status(405).json({ message: 'Method Not Allowed' })
