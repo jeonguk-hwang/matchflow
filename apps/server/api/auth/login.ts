@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import type { User } from '../../lib/types'
-import { signToken } from '../../lib/auth'
-import { withCors } from '../../lib/cors'
+import type { User } from '../_lib/types'
+import { signToken } from '../_lib/auth'
+import { withCors } from '../_lib/cors'
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (withCors(req, res)) return
@@ -15,7 +15,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     const user: User = { id: 'u_1', email }
     const token = signToken(user)
     return res.status(200).json({ token, user })
-  } catch (e) {
+  } catch {
     return res.status(500).json({ message: 'Internal Server Error' })
   }
 }

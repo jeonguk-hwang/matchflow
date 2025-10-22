@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import type { Match } from '../lib/types'
-import { getBearerToken, verifyTokenString } from '../lib/auth'
-import { Matches } from '../lib/matches'
-import { withCors } from '../lib/cors'
+import type { Match } from './_lib/types'
+import { getBearerToken, verifyTokenString } from './_lib/auth'
+import { Matches } from './_lib/matches'
+import { withCors } from './_lib/cors'
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (withCors(req, res)) return
