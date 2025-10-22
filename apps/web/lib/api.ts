@@ -1,9 +1,12 @@
 import axios from 'axios'
 
-export const api = axios.create({ baseURL: 'http://localhost:4000' })
+// 외부 서버 호스트가 주어지면 '/api'를 붙여 사용, 없으면 Next의 '/api'로 프록시
+const HOST = process.env.NEXT_PUBLIC_API_BASE
+const BASE_URL = HOST && HOST.length > 0 ? `${HOST}/api` : '/api'
+
+export const api = axios.create({ baseURL: BASE_URL })
 
 api.interceptors.request.use((config) => {
-  // 쿠키에서 토큰을 읽어 Authorization 헤더에 붙임 (브라우저 전용)
   if (typeof document !== 'undefined') {
     const token = document.cookie.split('; ').find(v => v.startsWith('mf_token='))?.split('=')[1]
     if (token) config.headers.set('Authorization', `Bearer ${token}`)
